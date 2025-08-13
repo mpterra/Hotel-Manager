@@ -8,10 +8,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
+import java.awt.event.*;
 
 import db.DatabaseConnector;
 import view.dialogs.QuartoDialog;
@@ -28,38 +25,33 @@ public class InicioPanel extends JPanel {
     public InicioPanel() {
         setLayout(new BorderLayout());
 
-        // Painel de busca no topo com espaçamento maior
+        // Painel de busca
         JPanel searchPanel = new JPanel(new BorderLayout(5, 5));
-        searchPanel.setBorder(new EmptyBorder(20, 10, 15, 10)); // top 20, bottom 15
-
+        searchPanel.setBorder(new EmptyBorder(20, 10, 15, 10));
         searchField = new JTextField();
         searchField.setToolTipText("Digite para filtrar quartos ou hóspedes...");
         searchPanel.add(new JLabel("Buscar:"), BorderLayout.WEST);
         searchPanel.add(searchField, BorderLayout.CENTER);
-
         add(searchPanel, BorderLayout.NORTH);
 
-        // Painel interno com GridLayout dinâmico
-        contentPanel = new JPanel(new GridLayout(0, colunas, 10, 10));
-        contentPanel.setBorder(new EmptyBorder(15, 10, 10, 10)); // top 15 para mais espaçamento
-
+        // Painel interno com GridBagLayout
+        contentPanel = new JPanel(new GridBagLayout());
+        contentPanel.setBorder(new EmptyBorder(15, 10, 10, 10));
         JScrollPane scrollPane = new JScrollPane(contentPanel);
         scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-
         add(scrollPane, BorderLayout.CENTER);
 
-        // Ajuste de colunas ao redimensionar
+        // Redimensionamento automático
         addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {
-                ajustarColunas();
+                atualizarTamanhoBotoes();
             }
         });
 
-        // Filtragem ao digitar
-        searchField.addActionListener(e -> filtrarQuartos());
+        // Filtragem
         searchField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             public void changedUpdate(javax.swing.event.DocumentEvent e) { filtrarQuartos(); }
             public void removeUpdate(javax.swing.event.DocumentEvent e) { filtrarQuartos(); }
@@ -81,7 +73,6 @@ public class InicioPanel extends JPanel {
                 while (rs.next()) {
                     int numeroQuarto = rs.getInt("numero");
                     QuartoInfo quartoInfo = new QuartoInfo(numeroQuarto);
-
                     carregarHospedesDoQuarto(quartoInfo, conn);
                     todosQuartos.add(quartoInfo);
                 }
@@ -92,41 +83,67 @@ public class InicioPanel extends JPanel {
         }
 
         filtrarQuartos();
+        atualizarTamanhoBotoes();
     }
 
     private void filtrarQuartos() {
-        String termo = searchField.getText().trim().toLowerCase();
         contentPanel.removeAll();
+        String termo = searchField.getText().trim().toLowerCase();
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.anchor = GridBagConstraints.NORTHWEST;
+
+        int x = 0, y = 0;
+
+        int larguraPainel = getWidth() - 20; // margem aproximada
+        int larguraBotao = Math.max(100, larguraPainel / colunas - 10); // largura mínima 100
+        int alturaBotao = (int)(larguraBotao * 1.15);
 
         for (QuartoInfo quarto : todosQuartos) {
             boolean corresponde = termo.isEmpty()
                     || String.valueOf(quarto.numero).contains(termo)
                     || quarto.hospedes.stream().anyMatch(nome -> nome.toLowerCase().contains(termo));
 
-            if (corresponde) {
-                contentPanel.add(criarBotaoQuarto(quarto));
+            if (!corresponde) continue;
+
+            JButton btn = criarBotaoQuarto(quarto);
+            btn.setPreferredSize(new Dimension(larguraBotao, alturaBotao));
+
+            // Define constraints para o botão
+            gbc.gridx = x;
+            gbc.gridy = y;
+            gbc.weightx = 0;            // não expandir horizontalmente
+            gbc.weighty = 0;            // não expandir verticalmente
+            gbc.fill = GridBagConstraints.NONE;
+            gbc.insets = new Insets(5, 5, 5, x == colunas - 1 ? 20 : 5); // espaço extra na última coluna
+
+            contentPanel.add(btn, gbc);
+
+            x++;
+            if (x >= colunas) {
+                x = 0;
+                y++;
             }
         }
+
+        // Força os botões ficarem no topo
+        gbc.gridx = 0;
+        gbc.gridy = y + 1;
+        gbc.weighty = 1;
+        gbc.fill = GridBagConstraints.VERTICAL;
+        contentPanel.add(Box.createVerticalGlue(), gbc);
 
         contentPanel.revalidate();
         contentPanel.repaint();
     }
 
-    private void ajustarColunas() {
-        int larguraPainel = getWidth();
-        int larguraBotao = 144 + 10;
-        int novasColunas = Math.max(1, larguraPainel / larguraBotao);
 
-        if (novasColunas != colunas) {
-            colunas = novasColunas;
-            contentPanel.setLayout(new GridLayout(0, colunas, 10, 10));
-            filtrarQuartos();
-        }
+    private void atualizarTamanhoBotoes() {
+        filtrarQuartos(); // refaz a disposição com tamanho atualizado
     }
 
     private JButton criarBotaoQuarto(QuartoInfo quartoInfo) {
         StringBuilder sb = new StringBuilder();
-
         sb.append("<b>Quarto ").append(quartoInfo.numero).append("</b><br><br>");
         if (quartoInfo.hospedes.isEmpty()) {
             sb.append("Vazio");
@@ -140,14 +157,12 @@ public class InicioPanel extends JPanel {
         }
 
         JButton btn = new JButton("<html><div style='text-align:center;'>" + sb + "</div></html>");
-        btn.setPreferredSize(new Dimension(144, 125));
         btn.setHorizontalAlignment(SwingConstants.CENTER);
         btn.setVerticalAlignment(SwingConstants.CENTER);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
         if (quartoInfo.dataDesocupacao != null) {
             LocalDate hoje = LocalDate.now();
-
             if (quartoInfo.dataDesocupacao.isBefore(hoje)) {
                 btn.setBackground(Color.RED);
                 btn.setForeground(Color.WHITE);
@@ -158,17 +173,13 @@ public class InicioPanel extends JPanel {
                 btn.setBackground(Color.BLUE);
                 btn.setForeground(Color.WHITE);
             }
-
             btn.setOpaque(true);
             btn.setBorderPainted(false);
         }
 
-        btn.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                new QuartoDialog(SwingUtilities.getWindowAncestor(InicioPanel.this), quartoInfo.numero).setVisible(true);
-            }
-        });
+        btn.addActionListener(e ->
+            new QuartoDialog(SwingUtilities.getWindowAncestor(InicioPanel.this), quartoInfo.numero).setVisible(true)
+        );
 
         return btn;
     }
@@ -188,7 +199,6 @@ public class InicioPanel extends JPanel {
 
                 while (rs.next()) {
                     nomes.add(rs.getString("nome"));
-
                     String dataSaidaStr = rs.getString("data_saida");
                     if (dataSaidaStr != null && !dataSaidaStr.isEmpty()) {
                         LocalDate data = LocalDate.parse(dataSaidaStr, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
@@ -197,7 +207,6 @@ public class InicioPanel extends JPanel {
                         }
                     }
                 }
-
                 quartoInfo.hospedes = nomes;
                 quartoInfo.dataDesocupacao = dataMaisProxima;
             }
@@ -208,9 +217,6 @@ public class InicioPanel extends JPanel {
         int numero;
         List<String> hospedes = new ArrayList<>();
         LocalDate dataDesocupacao;
-
-        QuartoInfo(int numero) {
-            this.numero = numero;
-        }
+        QuartoInfo(int numero) { this.numero = numero; }
     }
 }
