@@ -112,8 +112,8 @@ public class InicioPanel extends JPanel {
             // Define constraints para o botão
             gbc.gridx = x;
             gbc.gridy = y;
-            gbc.weightx = 0;            // não expandir horizontalmente
-            gbc.weighty = 0;            // não expandir verticalmente
+            gbc.weightx = 0;
+            gbc.weighty = 0;
             gbc.fill = GridBagConstraints.NONE;
             gbc.insets = new Insets(5, 5, 5, x == colunas - 1 ? 20 : 5); // espaço extra na última coluna
 
@@ -137,9 +137,17 @@ public class InicioPanel extends JPanel {
         contentPanel.repaint();
     }
 
-
     private void atualizarTamanhoBotoes() {
-        filtrarQuartos(); // refaz a disposição com tamanho atualizado
+        int larguraPainel = getWidth() - 40; // margem de segurança
+        int larguraMinimaBotao = 120; // mínimo aceitável
+        int larguraMaximaBotao = 180; // máximo aceitável
+
+        // calcula quantidade de colunas respeitando mínimo/máximo
+        int maxColunasPorMinimo = Math.max(1, larguraPainel / larguraMinimaBotao);
+        int maxColunasPorMaximo = Math.max(1, larguraPainel / larguraMaximaBotao);
+        colunas = Math.min(maxColunasPorMinimo, maxColunasPorMaximo);
+
+        filtrarQuartos();
     }
 
     private JButton criarBotaoQuarto(QuartoInfo quartoInfo) {
