@@ -1,2 +1,28 @@
-/bin/
+# Pastas do Maven
 /target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# Arquivos do banco local
+/db/hotel.db
+
+# IDEs e editores
+*.iml
+*.classpath
+*.project
+.idea/
+.vscode/
+.settings/
+
+# Logs e arquivos temporários
+*.log
+*.tmp
+*.bak
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Dependências externas (se houver)
+*.jar
+*.war
+*.ear
