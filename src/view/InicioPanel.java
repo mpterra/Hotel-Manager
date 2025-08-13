@@ -1,6 +1,7 @@
 package view;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.sql.*;
 import java.time.LocalDate;
@@ -16,17 +17,36 @@ import view.dialogs.QuartoDialog;
 public class InicioPanel extends JPanel {
 
     private static final DateTimeFormatter DISPLAY_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final int COLUNAS_POR_LINHA = 5; // <- controla 5 por linha
+
+    private final JPanel contentPanel; // Painel interno que conterá os botões
 
     public InicioPanel() {
-    	setLayout(new FlowLayout(FlowLayout.LEFT, 10, 10));
+        setLayout(new BorderLayout());
+
+        // Painel interno em grade: 0 linhas (auto), 5 colunas fixas, com espaçamento
+        contentPanel = new JPanel(new GridLayout(0, COLUNAS_POR_LINHA, 10, 10));
+        contentPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+
+        // Scroll contendo o painel interno
+        JScrollPane scrollPane = new JScrollPane(contentPanel);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16); // rolagem mais suave
+
+        add(scrollPane, BorderLayout.CENTER);
+
         carregarQuartosComHospedes();
     }
 
     private void carregarQuartosComHospedes() {
+        contentPanel.removeAll();
+
         try (Connection conn = DatabaseConnector.conectar()) {
             String sqlQuartos = "SELECT numero FROM quarto ORDER BY numero";
             try (PreparedStatement ps = conn.prepareStatement(sqlQuartos);
                  ResultSet rs = ps.executeQuery()) {
+
                 while (rs.next()) {
                     int numeroQuarto = rs.getInt("numero");
                     QuartoInfo quartoInfo = new QuartoInfo(numeroQuarto);
@@ -34,13 +54,17 @@ public class InicioPanel extends JPanel {
                     carregarHospedesDoQuarto(quartoInfo, conn);
 
                     JButton btn = criarBotaoQuarto(quartoInfo);
-                    add(btn);
+                    contentPanel.add(btn);
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(this, "Erro ao carregar quartos.", "Erro", JOptionPane.ERROR_MESSAGE);
         }
+
+        // Atualiza layout após popular
+        contentPanel.revalidate();
+        contentPanel.repaint();
     }
 
     private JButton criarBotaoQuarto(QuartoInfo quartoInfo) {
@@ -58,26 +82,23 @@ public class InicioPanel extends JPanel {
             }
         }
 
-        JButton btn = new JButton("<html><div style='text-align:center;'>" + sb.toString() + "</div></html>");
+        JButton btn = new JButton("<html><div style='text-align:center;'>" + sb + "</div></html>");
         btn.setPreferredSize(new Dimension(144, 125));
         btn.setHorizontalAlignment(SwingConstants.CENTER);
         btn.setVerticalAlignment(SwingConstants.CENTER);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        // 🔴 Se a data de desocupação for passada, pinta o botão de vermelho
+        // Cores por status de desocupação
         if (quartoInfo.dataDesocupacao != null) {
             LocalDate hoje = LocalDate.now();
 
             if (quartoInfo.dataDesocupacao.isBefore(hoje)) {
-                // Atrasado → Vermelho
                 btn.setBackground(Color.RED);
                 btn.setForeground(Color.WHITE);
             } else if (!quartoInfo.dataDesocupacao.isAfter(hoje.plusDays(28))) {
-                // Até 28 dias → Amarelo
                 btn.setBackground(Color.YELLOW);
                 btn.setForeground(Color.BLACK);
             } else {
-                // Mais de 28 dias → Azul
                 btn.setBackground(Color.BLUE);
                 btn.setForeground(Color.WHITE);
             }
@@ -86,8 +107,6 @@ public class InicioPanel extends JPanel {
             btn.setBorderPainted(false);
         }
 
-
-        // Ação ao clicar no botão
         btn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -97,7 +116,6 @@ public class InicioPanel extends JPanel {
 
         return btn;
     }
-
 
     private void carregarHospedesDoQuarto(QuartoInfo quartoInfo, Connection conn) throws SQLException {
         String sql = "SELECT h.nome, res.data_saida " +
