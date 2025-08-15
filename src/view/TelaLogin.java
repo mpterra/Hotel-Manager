@@ -7,6 +7,9 @@ import javax.swing.JLabel;
 import java.awt.Font;
 import javax.swing.SwingConstants;
 import javax.swing.UIManager;
+
+import com.formdev.flatlaf.FlatLightLaf;
+
 import db.DatabaseInitializer;
 import model.Sessao;
 import model.Usuario;
@@ -25,10 +28,10 @@ public class TelaLogin {
 
 	public static void main(String[] args) {
 		try {
-			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+	        UIManager.setLookAndFeel(new FlatLightLaf());
+	    } catch (Exception e) {
+	        e.printStackTrace();
+	    }
 
 		EventQueue.invokeLater(() -> {
 			// Garante que o banco e o usuário admin já estão prontos
